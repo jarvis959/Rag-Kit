@@ -30,6 +30,9 @@ Thumbs.db
 # Local config (user-specific)
 .rag-kit.yaml
 
+# Temp files
+release-body.json
+
 # Local vector database (user data)
 lancedb/
 
