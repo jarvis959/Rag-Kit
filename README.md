@@ -43,7 +43,6 @@ That's it. The installer creates a venv at `~/rag-kit-venv/`, installs everythin
 ## CLI Reference
 
 | Command | Description | JSON flag |
-|---|---|---|
 | `rag ingest <path>` | Ingest a file or folder | `--json` |
 | `rag query "<text>"` | Hybrid search (vector + keyword) | `--json` |
 | `rag list-files` | List all ingested files | `--json` |
@@ -93,7 +92,6 @@ export RAG_KIT_HF_ENDPOINT=https://hf-mirror.com   # China mirror
 ### Config file reference
 
 | Key | Type | Default | Description |
-|---|---|---|---|
 | `watch_folder` | path | `~/Documents/rag-ingest` | Folder the watcher monitors |
 | `db_path` | path | `~/lancedb` | LanceDB storage directory |
 | `model_dir` | path | `~/models` | Model cache directory |
@@ -121,46 +119,6 @@ export RAG_KIT_HF_ENDPOINT=https://hf-mirror.com   # China mirror
 | VLM | SmolVLM-256M-Instruct | ~500 MB | ~500 MB |
 | **Total** | | **~1.1 GB** | **~1.5 GB (< 2 GB)** |
 
-### Package structure
-
-```
-rag-kit/
-├── rag_kit/
-│   ├── __init__.py          # Version, package metadata
-│   ├── config.py            # YAML config, env overrides, validation
-│   ├── autostart.py         # schtasks (Win) / systemd (Linux)
-│   ├── watcher.py           # Poll-based folder monitor with MD5 tracking
-│   ├── cli/
-│   │   ├── __init__.py
-│   │   └── main.py          # Typer CLI: 7 commands + --json
-│   ├── embed/
-│   │   └── __init__.py      # EmbeddingEngine, chunk_text, Chunk dataclass
-│   ├── store/
-│   │   └── __init__.py      # VectorStore: LanceDB CRUD + search
-│   ├── ingest/
-│   │   ├── __init__.py
-│   │   ├── pipeline.py      # File ingestion: PDF/DOCX/TXT/MD
-│   │   ├── ocr.py           # EasyOCR wrapper
-│   │   └── language.py      # Language detection
-│   └── vlm/
-│       ├── __init__.py
-│       ├── captioner.py     # SmolVLM captioner
-│       ├── extractor.py     # Image extraction from docs
-│       └── language.py      # VLM prompt language
-├── scripts/
-│   ├── install-windows.bat
-│   ├── install-dgx-spark.sh
-│   ├── download-models.bat
-│   └── download-models.sh
-├── tests/
-│   ├── test_rag_pipeline.py    # 27 comprehensive tests
-│   ├── test_cli.py             # CLI integration tests
-│   ├── test_embed_store.py     # Embed + store smoke test
-│   ├── test_ingest_pipeline.py # Document ingestion tests
-│   └── test_vlm.py             # VLM component tests
-├── SKILL.md                    # Hermes Agent skill
-├── pyproject.toml
-└── README.md
 ```
 
 ## Hermes Agent Integration
