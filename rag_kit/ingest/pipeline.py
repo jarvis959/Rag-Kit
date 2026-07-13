@@ -131,7 +131,7 @@ def ingest_file(
     # VLM: extract and caption visual content (charts, diagrams, images).
     if use_vlm and ext in (".pdf", ".docx"):
         try:
-            vlm_chunks = _run_vlm_captioning(str(path))
+            vlm_chunks = _run_vlm_captioning(str(path), ext, languages)
             for vc in vlm_chunks:
                 vc["source_file"] = source_file
                 if "id" not in vc:
@@ -153,6 +153,48 @@ def ingest_file(
         sum(1 for c in all_chunks if c.get("vlm_generated")),
     )
     return all_chunks
+
+
+def _run_vlm_captioning(
+    file_path: str,
+    ext: str,
+    languages: list[str],
+) -> list[dict[str, Any]]:
+    """Extract visual regions from a document and caption them with VLM.
+
+    Uses rag_kit.vlm.extractor to find images/charts/diagrams, then
+    rag_kit.vlm.captioner to generate text descriptions. Each caption
+    becomes a chunk with vlm_generated=True and source_type="image".
+    """
+    from rag_kit.vlm import VLMCaptioner
+    from rag_kit.vlm.extractor import extract_images_from_pdf, extract_images_from_docx
+
+    captioner = VLMCaptioner()
+
+    if not captioner.is_available():
+        logger.info("VLM model not available, skipping visual captioning")
+        return []
+
+    # Determine caption language
+    language = "zh" if "zh" in languages else "en"
+
+    regions = []
+    if ext == ".pdf":
+        import fitz
+        doc = fitz.open(file_path)
+        try:
+            regions = extract_images_from_pdf(doc)
+        finally:
+            doc.close()
+    elif ext == ".docx":
+        regions = extract_images_from_docx(file_path)
+
+    if not regions:
+        logger.info("No visual regions found in %s", file_path)
+        return []
+
+    logger.info("Found %d visual regions in %s", len(regions), file_path)
+    return captioner.caption_regions(regions, language=language)
 
 
 def ingest_folder(
