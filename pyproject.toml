@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rag-kit"
+version = "0.1.0"
+description = "Agentic RAG system for Hermes Agent — watch, ingest, embed, query local documents"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [{name = "Jarvis"}]
+keywords = ["rag", "embeddings", "lancedb", "cli", "hermes-agent"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Text Processing :: Indexing",
+]
+
+dependencies = [
+    "typer>=0.9.0",
+    "pyyaml>=6.0",
+    "watchdog>=3.0",
+    "pymupdf>=1.24",
+    "python-docx>=1.1",
+    "sentence-transformers>=3.0",
+    "lancedb>=0.6",
+    "transformers>=4.46",
+    "pillow>=10.0",
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+ocr = ["easyocr>=1.7"]
+dev = ["pytest>=7.0", "pytest-cov"]
+
+[project.scripts]
+rag = "rag_kit.cli.main:app"
+rag-kit = "rag_kit.cli.main:app"
+
+[project.urls]
+Homepage = "https://github.com/jarvi/rag-kit"
+Repository = "https://github.com/jarvi/rag-kit"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["rag_kit*"]
+exclude = ["tests*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

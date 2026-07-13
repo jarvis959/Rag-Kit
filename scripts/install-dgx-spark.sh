@@ -1,0 +1,261 @@
+#!/usr/bin/env bash
+# install-dgx-spark.sh — One-shot installer for rag-kit on Linux (DGX Spark ARM64)
+#
+# Usage:
+#   chmod +x install-dgx-spark.sh
+#   ./install-dgx-spark.sh
+#
+# Tested on: NVIDIA DGX Spark (Grace ARM CPU + Blackwell GPU), Ubuntu 24.04
+
+set -euo pipefail
+
+# ---- Colors ----
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+echo ""
+echo -e "${BLUE}============================================================${NC}"
+echo -e "${BLUE}  rag-kit Installer - Linux (DGX Spark / ARM64 + CUDA)${NC}"
+echo -e "${BLUE}  Agentic RAG System for Hermes Agent${NC}"
+echo -e "${BLUE}============================================================${NC}"
+echo ""
+
+INSTALL_DIR="$HOME/rag-kit-venv"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# ---- Step 1: Check Python >= 3.10 ----
+echo -e "[1/7] Checking Python..."
+
+PYTHON=""
+for cmd in python3.12 python3.11 python3.10 python3 python; do
+    if command -v "$cmd" &>/dev/null; then
+        PYVER=$("$cmd" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || true)
+        MAJOR=$("$cmd" -c "import sys; print(sys.version_info.major)" 2>/dev/null || echo "0")
+        MINOR=$("$cmd" -c "import sys; print(sys.version_info.minor)" 2>/dev/null || echo "0")
+        if [ "$MAJOR" -eq 3 ] && [ "$MINOR" -ge 10 ]; then
+            PYTHON="$cmd"
+            echo "  Found $cmd $PYVER"
+            break
+        fi
+    fi
+done
+
+if [ -z "$PYTHON" ]; then
+    echo -e "  ${RED}ERROR: Python 3.10+ not found.${NC}"
+    echo "  Install with: sudo apt-get install -y python3 python3-venv python3-pip"
+    exit 1
+fi
+
+echo "  OK: $PYTHON version $PYVER meets requirements"
+echo ""
+
+# ---- Step 2: Detect GPU (always CUDA on DGX, but verify) ----
+echo -e "[2/7] Detecting GPU..."
+
+USE_CUDA=0
+if command -v nvidia-smi &>/dev/null && nvidia-smi &>/dev/null; then
+    USE_CUDA=1
+    GPU_NAME=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1 || echo "NVIDIA GPU")
+    echo "  GPU detected: $GPU_NAME"
+    echo "  Will install PyTorch with CUDA support (CUDA 12.4)."
+else
+    echo -e "  ${YELLOW}No NVIDIA GPU detected. Using CPU mode.${NC}"
+    echo "  Note: DGX Spark should have a Blackwell GPU — check nvidia-smi if missing."
+fi
+
+# Detect ARM64
+ARCH=$(uname -m)
+if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+    echo "  Architecture: ARM64 (DGX Spark)"
+else
+    echo -e "  ${YELLOW}Architecture: $ARCH (not ARM64 — this script is optimized for DGX Spark)${NC}"
+fi
+echo ""
+
+# ---- Step 2b: System dependencies ----
+echo "  Checking system dependencies..."
+
+if ! command -v python3-venv &>/dev/null; then
+    echo "  Installing python3-venv..."
+    sudo apt-get update -qq
+    sudo apt-get install -y -qq python3-venv python3-pip 2>/dev/null || {
+        echo -e "  ${RED}ERROR: Failed to install system packages. Try:${NC}"
+        echo "    sudo apt-get install -y python3-venv python3-pip"
+        exit 1
+    }
+fi
+echo ""
+
+# ---- Step 3: Create virtual environment ----
+echo -e "[3/7] Creating virtual environment at $INSTALL_DIR..."
+
+if [ -d "$INSTALL_DIR" ]; then
+    echo "  Removing existing installation..."
+    rm -rf "$INSTALL_DIR"
+fi
+
+$PYTHON -m venv "$INSTALL_DIR"
+if [ $? -ne 0 ]; then
+    echo -e "  ${RED}ERROR: Failed to create virtual environment.${NC}"
+    exit 1
+fi
+echo "  Created: $INSTALL_DIR"
+echo ""
+
+# ---- Step 4: Install dependencies ----
+echo -e "[4/7] Installing dependencies..."
+
+VENV_PYTHON="$INSTALL_DIR/bin/python"
+VENV_PIP="$INSTALL_DIR/bin/pip"
+
+# Upgrade pip
+"$VENV_PYTHON" -m pip install --upgrade pip -q 2>/dev/null
+
+if [ "$USE_CUDA" -eq 1 ]; then
+    echo "  Installing PyTorch with CUDA (ARM64-compatible)..."
+    "$VENV_PIP" install torch torchvision torchaudio \
+        --index-url https://download.pytorch.org/whl/cu124 -q 2>/dev/null || {
+        echo -e "  ${YELLOW}WARNING: CUDA PyTorch failed. Falling back to CPU PyTorch...${NC}"
+        "$VENV_PIP" install torch torchvision torchaudio \
+            --index-url https://download.pytorch.org/whl/cpu -q
+    }
+else
+    echo "  Installing PyTorch (CPU)..."
+    "$VENV_PIP" install torch torchvision torchaudio \
+        --index-url https://download.pytorch.org/whl/cpu -q
+fi
+
+if [ $? -ne 0 ]; then
+    echo -e "  ${RED}ERROR: Failed to install PyTorch.${NC}"
+    exit 1
+fi
+
+echo "  Installing rag-kit and dependencies..."
+cd "$PROJECT_DIR"
+"$VENV_PIP" install -e ".[ocr]" -q
+
+if [ $? -ne 0 ]; then
+    echo -e "  ${RED}ERROR: Failed to install rag-kit.${NC}"
+    exit 1
+fi
+echo "  Installation complete."
+echo ""
+
+# ---- Step 5: Verify imports and CLI ----
+echo -e "[5/7] Verifying installation..."
+
+"$VENV_PYTHON" -c "import rag_kit; print('  rag_kit v' + rag_kit.__version__)" 2>/dev/null || {
+    echo -e "  ${RED}ERROR: Failed to import rag_kit.${NC}"
+    exit 1
+}
+
+"$VENV_PYTHON" -c "import rag_kit.autostart; print('  autostart OK')" 2>/dev/null
+"$VENV_PYTHON" -c "import rag_kit.watcher; print('  watcher OK')" 2>/dev/null
+
+# Test CLI
+if "$VENV_PYTHON" -m rag_kit.cli.main --version &>/dev/null; then
+    echo "  CLI: rag --version OK"
+else
+    echo -e "  ${YELLOW}WARNING: rag CLI test failed${NC}"
+fi
+
+# Create default config
+"$VENV_PYTHON" -m rag_kit.cli.main config init &>/dev/null && \
+    echo "  Config: Created default config (~/.rag-kit.yaml)" || \
+    echo "  WARNING: Could not create default config (non-fatal)"
+
+# Create default watch folder
+mkdir -p "$HOME/Documents/rag-ingest" 2>/dev/null && \
+    echo "  Created watch folder: ~/Documents/rag-ingest"
+
+echo "  Verification passed."
+echo ""
+
+# ---- Step 6: Setup autostart ----
+echo -e "[6/7] Setting up autostart..."
+
+"$INSTALL_DIR/bin/rag" setup-autostart --interval 30 --json 2>/dev/null
+if [ $? -eq 0 ]; then
+    echo "  Autostart: Installed (systemd user service + linger)"
+else
+    echo -e "  ${YELLOW}Autostart: NOT installed${NC}"
+    echo "  To install autostart manually:"
+    echo "    $INSTALL_DIR/bin/rag setup-autostart"
+fi
+echo ""
+
+# ---- Step 7: Start watcher daemon ----
+echo -e "[7/7] Starting watcher daemon..."
+
+# Start the watcher in background via nohup.
+WATCH_FOLDER="$HOME/Documents/rag-ingest"
+nohup "$INSTALL_DIR/bin/rag" watch "$WATCH_FOLDER" > "$HOME/.rag-kit-watcher.log" 2>&1 &
+WATCHER_PID=$!
+
+sleep 1
+if kill -0 "$WATCHER_PID" 2>/dev/null; then
+    echo "  Watcher: Running (PID: $WATCHER_PID)"
+    echo "  Watch folder: $WATCH_FOLDER"
+    echo "  Log: ~/.rag-kit-watcher.log"
+else
+    echo -e "  ${YELLOW}Watcher: Could not start. Run manually:${NC}"
+    echo "    $INSTALL_DIR/bin/rag watch $WATCH_FOLDER &"
+fi
+echo ""
+
+# ---- Copy Hermes Agent skill ----
+SKILL_SRC="$PROJECT_DIR/SKILL.md"
+SKILL_DST="$HOME/.hermes/skills/research/rag-kit/SKILL.md"
+
+if [ -f "$SKILL_SRC" ]; then
+    if [ ! -f "$SKILL_DST" ]; then
+        mkdir -p "$(dirname "$SKILL_DST")" 2>/dev/null
+        cp "$SKILL_SRC" "$SKILL_DST" 2>/dev/null && \
+            echo "  Hermes Agent skill installed: research/rag-kit" || true
+    fi
+fi
+
+# ---- Summary ----
+echo ""
+echo -e "${GREEN}============================================================${NC}"
+echo -e "${GREEN}  Installation Complete${NC}"
+echo -e "${GREEN}============================================================${NC}"
+echo ""
+
+# Check autostart status
+if systemctl --user is-active rag-kit-watcher &>/dev/null; then
+    echo "  Autostart:    Installed (systemd user service)"
+else
+    echo "  Autostart:    NOT installed"
+fi
+
+# Check if watcher is running
+if kill -0 "$WATCHER_PID" 2>/dev/null; then
+    echo "  Watcher:      Running (PID: $WATCHER_PID)"
+else
+    echo "  Watcher:      Not running (start manually)"
+fi
+
+echo ""
+echo "  Installation directory: $INSTALL_DIR"
+echo "  CLI executable:         $INSTALL_DIR/bin/rag"
+echo "  Config file:            ~/.rag-kit.yaml"
+echo "  Watch folder:           $WATCH_FOLDER"
+echo "  Vector DB:              ~/lancedb"
+echo "  Model cache:            ~/models"
+echo ""
+echo "  Quick start:"
+echo "    Drop documents in: $WATCH_FOLDER"
+echo "    Then query:        $INSTALL_DIR/bin/rag query --json \"your question\""
+echo "    Check status:      $INSTALL_DIR/bin/rag status"
+echo "    Add to PATH:       echo 'export PATH=\"$INSTALL_DIR/bin:\$PATH\"' >> ~/.bashrc"
+echo ""
+echo "  For help: $INSTALL_DIR/bin/rag --help"
+echo ""
+
+read -r -p "Press Enter to finish..." _dummy
+exit 0

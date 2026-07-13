@@ -1,0 +1,42 @@
+# rag-kit example configuration
+# Copy to ~/.rag-kit.yaml or ./rag-kit.yaml and edit as needed.
+
+# Folder to watch for new/changed documents.
+watch_folder: ~/Documents/rag-ingest
+
+# Path to the LanceDB database directory.
+db_path: ~/lancedb
+
+# Directory for downloaded models (embedding, OCR, VLM).
+model_dir: ~/models
+
+# HuggingFace model name for embeddings (384-dim, multilingual).
+embedding_model: paraphrase-multilingual-MiniLM-L12-v2
+
+# HuggingFace model name for VLM (vision-language model).
+vlm_model: SmolVLM-256M-Instruct
+
+# Enable/disable VLM captioning for image-heavy documents.
+vlm_enabled: true
+
+# Supported file extensions for ingestion.
+supported_extensions: [.pdf, .docx, .txt, .md]
+
+# Languages for OCR and text processing.
+languages: [zh, en]
+
+# Text chunking parameters.
+chunk_size: 512
+chunk_overlap: 64
+
+# Folder watcher poll interval (seconds).
+watch_interval: 30
+
+# Hybrid search blend: 0.0 = pure keyword, 1.0 = pure semantic.
+search_alpha: 0.5
+
+# Maximum total model memory (MB). Guard against exceeding 2 GB.
+max_memory_mb: 2048
+
+# HuggingFace endpoint override (e.g. https://hf-mirror.com for China).
+hf_endpoint: ""
