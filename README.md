@@ -1,6 +1,6 @@
 # rag-kit
 
-Agentic RAG system for Hermes Agent — watch a folder, auto-ingest documents (PDF, DOCX, TXT, MD), embed with multilingual sentence-transformers, store in LanceDB, and query via a CLI designed for LLM agent consumption.
+Agentic RAG system for Hermes Agent. Watches a folder, auto-ingests documents (PDF, DOCX, TXT, MD), embed with multilingual sentence-transformers, store in LanceDB, and query via a CLI designed for LLM agents.
 
 ## Quickstart (one-liner per platform)
 
@@ -109,19 +109,7 @@ export RAG_KIT_HF_ENDPOINT=https://hf-mirror.com   # China mirror
 | `max_memory_mb` | int | `2048` | Memory budget guard |
 | `hf_endpoint` | str | `""` | HF endpoint (set for China) |
 
-## Architecture
 
-```
-┌──────────────┐    ┌───────────────┐    ┌───────────┐    ┌─────────┐
-│ Watch Folder │───▶│ Ingest Engine │───▶│ Embedding │───▶│ LanceDB │
-│ (watchdog +  │    │ (OCR + VLM)   │    │ (384-dim) │    │ (local) │
-│  poll-based) │    └───────────────┘    └───────────┘    └────┬────┘
-└──────────────┘                                               │
-                                                               ▼
-                                                        ┌──────────┐
-                                                        │  Query   │
-                                                        │ (hybrid) │
-                                                        └──────────┘
 ```
 
 ### Models
@@ -198,7 +186,99 @@ python -m pytest tests/ -v
 # Run specific test modules
 python -m pytest tests/test_cli.py -v
 python -m pytest tests/test_embed_store.py -v
-python -m pytest tests/test_vlm.py -v
+python -m pytest tests/test_vlm.py -v        192.168.100.10/24 dev enp1s0f1np1 sudo ip link set enp1s0f1np1 up.
+
+        On Node 2, assign an IP and bring the interface up: sudo ip addr add 192.168.100.11/24 dev enp1s0f1np1 sudo ip link set enp1s0f1np1 up.
+
+        Verify IP assignments on both nodes with ip addr show enp1s0f1np1.
+
+        On Node 1, generate an SSH key pair: ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N "".
+
+        Copy the public key to Node 2: ssh-copy-id -i ~/.ssh/id_ed25519.pub nvidia@192.168.100.11.
+
+        Test passwordless SSH from Node 1 to Node 2: ssh nvidia@192.168.100.11 hostname.
+
+        Verify connectivity with ping from Node 1 to Node 2: ping -c 4 192.168.100.11 and from Node 2 to Node 1.
+
+    Optional: Persistent Network Configuration
+
+        Create /etc/netplan/99-multinode.yaml on each node with the assigned IP and apply using sudo netplan apply to persist settings across reboots.
+
+    Optional: Bandwidth Test
+
+        On Node 2, run iperf3 -s; on Node 1, run iperf3 -c 192.168.100.11 -t 10 to measure throughput.
+    Learn more:
+    1 -build.nvidia.com
+    2 -deepwiki.com
+    3 -github.com
+    See less
+    Feedback
+     
+    Global web icon
+    nvidia.com
+    https://build.nvidia.com › spark › connect-two-sparks
+    Connect Two Sparks | DGX Spark
+
+    Nov 24, 2025 · You will physically connect two DGX Spark devices with a QSFP cable, configure network interfaces for cluster communication, and establish passwordless SSH between nodes to …
+     
+    Global web icon
+    deepwiki.com
+    https://deepwiki.com › NVIDIA › dgx-spark-playbooks
+    Connecting Two Sparks | NVIDIA/dgx-spark-playbooks | DeepWiki
+
+    Mar 23, 2026 · This document covers the physical and network setup required to connect two DGX Spark devices for distributed workloads. This includes QSFP cable connection, network interface …
+    Global web icon
+    Collabnix
+    https://collabnix.com › how-to-connect-two-nvidia-dgx-spark-nodes-as-kubernetes-gpu...
+    How to Connect Two NVIDIA DGX Spark Nodes as Kubernetes …
+
+    Jun 21, 2026 · A hot topic in the NVIDIA DGX Spark community is how to connect two Spark nodes for distributed GPU workloads. This guide shows you how to set up two DGX Spark systems as GPU …
+    Global web icon
+    nvidia.com
+    https://build.nvidia.com › spark › connect-two-sparks › stacked-sparks
+    Connect Two Sparks | DGX Spark - build.nvidia.com
+
+    Connect the QSFP cable between both DGX Spark systems using any QSFP interface on each device. This establishes the 200GbE direct connection required for high-speed inter-node communication.
+    Global web icon
+    deepwiki.com
+    https://deepwiki.com › NVIDIA › dgx-spark-playbooks
+    Multi-Node Setups | NVIDIA/dgx-spark-playbooks | DeepWiki
+
+    Mar 23, 2026 · DGX Spark supports two primary physical connectivity patterns for multi-node clusters: direct back-to-back connection and switched fabric. The following diagram bridges physical hardware …
+    Global web icon
+    Collabnix
+    https://collabnix.com › docker › how-to-connect-two...
+    How to Connect Two NVIDIA DGX Spark Nodes as Kubernetes …
+
+    Jun 21, 2026 · A hot topic in the NVIDIA DGX Spark community is how to connect two Spark nodes for distributed GPU workloads. This guide shows you how to set up two DGX Spark systems as GPU …
+    Global web icon
+    orhanyildirim.us
+    https://orhanyildirim.us › blog
+    Building a 256GB AI Cluster on My Desk: Connecting Two NVIDIA DGX ...
+
+    Mar 1, 2026 · The author shares their experience building a 256GB AI cluster using two NVIDIA DGX Sparks for distributed LLM inference. They detail the setup process, including the hardware …
+    Global web icon
+    Improve & Repeat
+    https://improveandrepeat.com › how-to-connect-two-nvidia-dgx-sparks
+    How to Connect Two NVIDIA DGX Sparks - Improve & Repeat
+
+    6 days ago · The official guide covers all the important points we need to connect two DGX Sparks. However, as so often the tiny little points that are not in the documentation cost a lot of time.
+    Global web icon
+    Github
+    https://github.com › ArgentAIOS › dgx-spark-cluster
+    ArgentAIOS/dgx-spark-cluster - GitHub
+
+    Apr 10, 2026 · Complete setup guide for a 2-node NVIDIA DGX Spark cluster — distributed training, CUDA inference with EXO, NCCL tuning for Grace Blackwell, NVMe-TCP shared storage, and 200 …
+    People also ask
+     
+    Some results are removed in response to a notice of local law requirement. For more information, please see here.
+    Some results have been hidden because they may be inaccessible to you.
+    Show inaccessible results
+        1
+        2
+        3
+
+
 ```
 
 ## Troubleshooting
