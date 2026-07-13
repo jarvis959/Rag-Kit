@@ -3,10 +3,11 @@
 #
 # Usage:
 #   chmod +x download-models.sh
-#   ./download-models.sh
+#   ./download-models.sh           # Download from GitHub Releases (pinned versions)
+#   ./download-models.sh --hf      # Download from HuggingFace / hf-mirror (latest versions)
 #
 # Models are cached in ~/models/ by default.
-# Set HF_ENDPOINT=https://hf-mirror.com for users behind firewalls.
+# Set MODEL_DIR to override.
 
 set -euo pipefail
 
@@ -16,18 +17,113 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+# ---- Config ----
+MODEL_DIR="${MODEL_DIR:-$HOME/models}"
+RELEASE_TAG="v0.1.0"
+RELEASE_BASE="https://github.com/jarvis959/Rag-Kit/releases/download/${RELEASE_TAG}"
+
+# ---- Parse args ----
+SOURCE="github"
+if [[ "${1:-}" == "--hf" ]]; then
+    SOURCE="hf"
+fi
+
 echo ""
 echo -e "${BLUE}============================================================${NC}"
 echo -e "${BLUE}  rag-kit - Model Downloader${NC}"
-echo -e "${BLUE}  Downloads all models for offline use${NC}"
+if [[ "$SOURCE" == "github" ]]; then
+    echo -e "${BLUE}  Source: GitHub Releases (${RELEASE_TAG})${NC}"
+    echo -e "${BLUE}  Pinned versions — guaranteed compatible${NC}"
+else
+    echo -e "${BLUE}  Source: HuggingFace (latest versions)${NC}"
+fi
 echo -e "${BLUE}============================================================${NC}"
 echo ""
-echo "This script pre-downloads models to ~/models/"
-echo "so rag-kit can work fully offline after installation."
-echo ""
 
-MODEL_DIR="${MODEL_DIR:-$HOME/models}"
 mkdir -p "$MODEL_DIR"
+
+# Check for curl
+if ! command -v curl &>/dev/null; then
+    echo -e "${RED}ERROR: curl is required but not found.${NC}"
+    exit 1
+fi
+
+# ============================================================
+# GITHUB RELEASES DOWNLOAD (pinned, version-locked)
+# ============================================================
+if [[ "$SOURCE" == "github" ]]; then
+
+    echo "Downloading pinned model weights from GitHub Releases..."
+    echo "  Target: $MODEL_DIR"
+    echo ""
+
+    # ---- 1. Embedding model ----
+    EMBED_DIR="$MODEL_DIR/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2/snapshots/e8f8c211226b894fcb81acc59f3b34ba3efd5f42"
+    if [[ -f "$EMBED_DIR/model.safetensors" ]]; then
+        echo -e "  [1/3] Embedding model: ${GREEN}already present${NC}"
+    else
+        echo -e "  [1/3] Downloading embedding model (~832 MB)..."
+        mkdir -p /tmp/rag-kit-models
+        curl -L --progress-bar -o /tmp/rag-kit-models/embedding.tar.gz \
+            "${RELEASE_BASE}/embedding-model.tar.gz"
+        mkdir -p "$MODEL_DIR"
+        tar -xzf /tmp/rag-kit-models/embedding.tar.gz -C "$MODEL_DIR"
+        rm -f /tmp/rag-kit-models/embedding.tar.gz
+        echo -e "    ${GREEN}OK${NC}"
+    fi
+
+    # ---- 2. EasyOCR models ----
+    EASYOCR_DIR="$HOME/.EasyOCR/model"
+    if [[ -f "$EASYOCR_DIR/zh_sim_g2.pth" ]]; then
+        echo -e "  [2/3] EasyOCR models: ${GREEN}already present${NC}"
+    else
+        echo -e "  [2/3] Downloading EasyOCR models (~93 MB)..."
+        curl -L --progress-bar -o /tmp/rag-kit-models/easyocr.tar.gz \
+            "${RELEASE_BASE}/easyocr-models.tar.gz"
+        mkdir -p "$EASYOCR_DIR"
+        tar -xzf /tmp/rag-kit-models/easyocr.tar.gz -C "$EASYOCR_DIR"
+        rm -f /tmp/rag-kit-models/easyocr.tar.gz
+        echo -e "    ${GREEN}OK${NC}"
+    fi
+
+    # ---- 3. SmolVLM (optional) ----
+    VLM_DIR="$MODEL_DIR/models--HuggingFaceTB--SmolVLM-256M-Instruct/snapshots/manual"
+    if [[ -f "$VLM_DIR/model.safetensors" ]]; then
+        echo -e "  [3/3] SmolVLM: ${GREEN}already present${NC}"
+    else
+        echo -n "  [3/3] Download SmolVLM (~333 MB)? [Y/n]: "
+        read -r DL_VLM
+        if [[ "$DL_VLM" != "n" && "$DL_VLM" != "N" ]]; then
+            curl -L --progress-bar -o /tmp/rag-kit-models/smolvlm.tar.gz \
+                "${RELEASE_BASE}/smolvlm-model.tar.gz"
+            mkdir -p "$VLM_DIR"
+            tar -xzf /tmp/rag-kit-models/smolvlm.tar.gz -C "$VLM_DIR"
+            rm -f /tmp/rag-kit-models/smolvlm.tar.gz
+            echo -e "    ${GREEN}OK${NC}"
+        else
+            echo "    Skipped (VLM is optional)"
+        fi
+    fi
+
+    rmdir /tmp/rag-kit-models 2>/dev/null || true
+
+    echo ""
+    echo -e "${GREEN}============================================================${NC}"
+    echo -e "${GREEN}  Download Complete${NC}"
+    echo -e "${GREEN}  Models cached in: $MODEL_DIR${NC}"
+    echo -e "${GREEN}============================================================${NC}"
+    echo ""
+    echo "You can now install rag-kit:"
+    echo "  pip install -e \".[ocr]\""
+    echo "  rag status"
+    echo ""
+    exit 0
+fi
+
+# ============================================================
+# HUGGINGFACE DOWNLOAD (latest versions)
+# ============================================================
+# Original HuggingFace-based download flow (fallback)
 
 # Check Python
 PYTHON=""
@@ -194,5 +290,4 @@ echo "You can now install rag-kit offline:"
 echo "  ./scripts/install-dgx-spark.sh"
 echo ""
 
-# Linux doesn't have 'pause'; just exit.
 exit 0
